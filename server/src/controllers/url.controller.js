@@ -1,6 +1,7 @@
 import prisma from "../prisma.js";
 import { nanoid } from "nanoid";
 import jwt from "jsonwebtoken";
+import redis from "../redis.js";
 
 const JWT_SECRET = process.env.JWT_SECRET || "fallback-secret-for-development";
 
@@ -89,7 +90,13 @@ export const deleteUrl = async (req, res, next) => {
         if (urlConfig.userId !== req.user.id) {
             return res.status(403).json({ error: "Forbidden. You do not own this URL." });
         }
+
+        //delete from DB and Redis
         await prisma.url.delete({ where: { id } });
+        await redis.del(`url:${urlConfig.shortCode}`);
+        await redis.del(`clicks:${urlConfig.shortCode}`);
+        await redis.srem("pending:clicks", urlConfig.shortCode);
+
         res.json({ message: "URL deleted successfully." });
     } catch (err) {
         next(err);
@@ -99,17 +106,61 @@ export const deleteUrl = async (req, res, next) => {
 export const redirectUrl = async (req, res, next) => {
     try {
         const { code } = req.params;
+        const cacheKey = `url:${code}`;
+
+        const cachedData = await redis.get(cacheKey);
+        if (cachedData) {
+            const cachedUrl = JSON.parse(cachedData);
+
+            //Expiry check
+            if (cachedUrl.expiresAt && new Date(cachedUrl.expiresAt) < new Date()) {
+                return res.status(410).json({ error: "URL has expired." });
+            }
+
+            await redis.incr(`clicks:${code}`);
+            await redis.sadd("pending:clicks", code);
+
+            //Used for analytics 
+            prisma.click.create({ 
+                data: {
+                    urlId: cachedUrl.id,
+                    referrer: req.get("referrer") || null,
+                    userAgent: req.get("user-agent") || null
+                }
+            }).catch(err => console.error("Error creating click record:", err));
+
+            return res.redirect(302, cachedUrl.longUrl);
+        }
+
+        //Cache miss- use db
         const urlConfig = await prisma.url.findUnique({ where: { shortCode: code } });
         if (!urlConfig) {
             return res.status(404).json({ error: "URL not found." });
         }
 
-        //expiry check
         if (urlConfig.expiresAt && new Date(urlConfig.expiresAt) < new Date()) {
             return res.status(410).json({ error: "URL has expired." });
         }
-    
-        //create click record for click analytics
+
+        let ttl = 3600; // default = 1 hour
+        if (urlConfig.expiresAt) {
+            const remainingMs = new Date(urlConfig.expiresAt).getTime() - Date.now();
+            const remainingSec = Math.floor(remainingMs / 1000);
+            if (remainingSec > 0) {
+                ttl = Math.min(3600, remainingSec);
+            }
+        }
+
+        const cacheValue = JSON.stringify({
+            id: urlConfig.id,
+            longUrl: urlConfig.longUrl,
+            expiresAt: urlConfig.expiresAt
+        });
+        await redis.set(cacheKey, cacheValue, "EX", ttl);
+
+        await redis.incr(`clicks:${code}`);
+        await redis.sadd("pending:clicks", code);
+
         prisma.click.create({
             data: {
                 urlId: urlConfig.id,
@@ -118,13 +169,49 @@ export const redirectUrl = async (req, res, next) => {
             }
         }).catch(err => console.error("Error creating click record:", err));
 
-        prisma.url.update({
-            where: { id: urlConfig.id },
-            data: { clickCount: { increment: 1 } }
-        }).catch(err => console.error("Error incrementing click count:", err));
-
-        res.redirect(302, urlConfig.longUrl);       //redirect to the original long url
+        res.redirect(302, urlConfig.longUrl);
     } catch (err) {
         next(err);
     }
 };
+
+//periodically move click data from redis to postgres
+const FLUSH_INTERVAL = 60000; 
+
+async function flushClicks() {
+    try {
+        const shortCodes = await redis.smembers("pending:clicks");
+        if (shortCodes.length === 0) return;
+
+        console.log(`Flushing click counts for ${shortCodes.length} URLs...`);
+
+        for (const shortCode of shortCodes) {
+            const clickKey = `clicks:${shortCode}`;
+            const countStr = await redis.get(clickKey);
+            if (!countStr) continue;
+
+            const incrementValue = parseInt(countStr, 10);
+            if (isNaN(incrementValue) || incrementValue <= 0) continue;
+
+            try {
+                await prisma.url.update({
+                    where: { shortCode },
+                    data: { clickCount: { increment: incrementValue } }
+                });
+
+                //decrement in redis as db has been updated already
+                const remaining = await redis.decrby(clickKey, incrementValue);
+                if (remaining <= 0) {
+                    await redis.del(clickKey);
+                    await redis.srem("pending:clicks", shortCode); 
+                }
+            } catch (err) {
+                console.error(`Failed to flush clicks for ${shortCode} to database:`, err);
+            }
+        }
+    } catch (err) {
+        console.error("Error in click flusher:", err);
+    }
+}
+
+setInterval(flushClicks, FLUSH_INTERVAL);
