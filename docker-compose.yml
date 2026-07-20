@@ -1,16 +1,29 @@
-version: '3.8'
+version: "3.9"
 
 services:
-  postgres:
-    image: postgres:15-alpine
-    environment:
-      POSTGRES_DB: urlshortener
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password
+  app:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
     ports:
-      - "5432:5432"
+      - "5000:5000"
+    env_file:
+      - ./server/.env
+    environment:
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - redis
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - ./server:/app
+      - /app/node_modules
+
+  redis:
+    image: redis:7-alpine
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
 
 volumes:
-  pgdata:
+  redisdata:
