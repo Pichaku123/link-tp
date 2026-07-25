@@ -125,7 +125,7 @@ export default function UrlForm({ onSuccess }) {
                     <div>
                         <p style={{ fontWeight: 600, fontSize: "0.875rem" }}>Link shortened successfully!</p>
                         <p style={{ fontSize: "1.05rem", fontWeight: 700, marginTop: "0.25rem", color: "var(--accent-color)" }}>
-                            {`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/${result.shortCode}`}
+                            {`${import.meta.env.VITE_API_URL || "http://localhost:5000/"}${result.shortCode}`}
                         </p>
                     </div>
                     <button onClick={handleCopy} className="btn-primary" style={{ padding: "0.4rem 1rem", fontSize: "0.85rem" }}>
