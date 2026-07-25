@@ -175,6 +175,78 @@ export const redirectUrl = async (req, res, next) => {
     }
 };
 
+export const getUrlStats = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const urlConfig = await prisma.url.findUnique({
+            where: { id },
+            include: {
+                clicks: true
+            }
+        });
+
+        if (!urlConfig) {
+            return res.status(404).json({ error: "URL not found." });
+        }
+
+        if (urlConfig.userId !== req.user.id) {
+            return res.status(403).json({ error: "Forbidden. You do not own this URL." });
+        }
+
+        const totalClicks = urlConfig.clickCount;
+        
+        // Group referrers, browsers, and devices
+        const referrers = {};
+        const devices = { Desktop: 0, Mobile: 0, Tablet: 0, Unknown: 0 };
+        const browsers = {};
+
+        urlConfig.clicks.forEach(click => {
+            // Referrers
+            let ref = "Direct / Email";
+            if (click.referrer) {
+                try {
+                    ref = new URL(click.referrer).hostname;
+                } catch (e) {
+                    ref = click.referrer;
+                }
+            }
+            referrers[ref] = (referrers[ref] || 0) + 1;
+
+            // Simple Device classification
+            const ua = click.userAgent || "";
+            if (/mobile|iphone|ipod|android/i.test(ua)) {
+                devices.Mobile++;
+            } else if (/tablet|ipad/i.test(ua)) {
+                devices.Tablet++;
+            } else if (ua === "") {
+                devices.Unknown++;
+            } else {
+                devices.Desktop++;
+            }
+
+            // Browser classification
+            let browser = "Unknown";
+            if (/chrome|crios/i.test(ua) && !/edge|edg/i.test(ua)) browser = "Chrome";
+            else if (/firefox|fxios/i.test(ua)) browser = "Firefox";
+            else if (/safari/i.test(ua) && !/chrome|crios/i.test(ua)) browser = "Safari";
+            else if (/edge|edg/i.test(ua)) browser = "Edge";
+            browsers[browser] = (browsers[browser] || 0) + 1;
+        });
+
+        res.json({
+            id: urlConfig.id,
+            shortCode: urlConfig.shortCode,
+            longUrl: urlConfig.longUrl,
+            totalClicks,
+            referrers,
+            devices,
+            browsers
+        });
+    } catch (err) {
+        next(err);
+    }
+};
+
 //periodically move click data from redis to postgres
 const FLUSH_INTERVAL = 60000; 
 
