@@ -1,27 +1,42 @@
-# LinkTP 🚀
+# LinkTP 
 
-[![Node.js Version](https://img.shields.io/badge/node-%3E%3D20.0.0-blue.svg)](https://nodejs.org/)
-[![React Version](https://img.shields.io/badge/react-18.x-cyan.svg)](https://react.dev/)
-[![Prisma Version](https://img.shields.io/badge/prisma-6.x-indigo.svg)](https://www.prisma.io/)
-[![Redis Cache](https://img.shields.io/badge/redis-7.x-red.svg)](https://redis.io/)
-[![Docker Compose](https://img.shields.io/badge/docker--compose-supported-blue.svg)](https://docs.docker.com/compose/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![NodeJS](https://img.shields.io/badge/Node.js-43853D?style=for-the-badge&logo=node.js&logoColor=white)](https://nodejs.org/)
+[![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)](https://react.dev/)
+[![Prisma](https://img.shields.io/badge/Prisma-398200?style=for-the-badge&logo=prisma&logoColor=white)](https://www.prisma.io/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-316192?style=for-the-badge&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+[![Redis](https://img.shields.io/badge/Redis-DC382D?style=for-the-badge&logo=redis&logoColor=white)](https://redis.io/)
+[![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com/)
+[![Vercel](https://img.shields.io/badge/Vercel-000000?style=for-the-badge&logo=vercel&logoColor=white)](https://vercel.com/)
+[![Render](https://img.shields.io/badge/Render-46E3B7?style=for-the-badge&logo=render&logoColor=white)](https://render.com/)
 
 LinkTP is a feature-rich, high-performance, full-stack URL shortener and real-time analytics platform. Modern web architectures demand low latency for link redirects and high throughput for analytics payload collection. LinkTP solves this by introducing a Redis caching layer for instant redirection and an asynchronous flushing queue to persist URL click metrics to PostgreSQL without blocking user traffic.
 
----
-
-## ⚡ Key Features
-
-*   **Custom Aliases & Expiration Security:** Shorten links with custom, readable aliases or auto-generated 7-character clean hashes (`nanoid`). Set custom expiration times to expire links automatically.
-*   **Asynchronous Click Logging:** Incoming click events are cached instantly inside Redis, incrementing counts natively, and then flushed to the relational database in scheduled batches. This eliminates write lock bottlenecks.
-*   **Granular Analytics Dashboards:** Track visits and classify visitors by device platforms (Desktop, Mobile, Tablet), client browser software (Chrome, Edge, Firefox, Safari), and referring domain paths.
-*   **Secure Authentication:** Keep dashboards and statistics private using a JWT token-in-cookie verification mechanism.
-*   **Dockerized Deployment:** Start the entire production-like topology containing the backend service and Redis using Docker Compose.
+**Live Demo:** [https://link-tp.vercel.app/](#)  
+**API:** [https://link-tp.onrender.com/](#)
 
 ---
 
-## 🏗️ Architecture & Technology Stack
+## Key Features
+
+* **Custom Aliases & Expiration:** Shorten links with custom, readable aliases or auto-generated short hashes (`nanoid`). Set expiration timestamps to retire links automatically.
+* **Asynchronous Click Logging:** Incoming click events are recorded instantly in Redis via atomic `INCR`, then flushed to PostgreSQL in scheduled 60-second batches, thus avoiding write-lock contention on every redirect.
+* **Cache-Aside Redirects:** Short-code lookups are served from Redis on cache hits (sub-5ms), falling back to PostgreSQL on misses, with dynamic TTLs matching each URL's expiry.
+* **Referrer & Device Analytics:** Each click captures referrer and device/browser data, surfaced on a per-link analytics dashboard.
+* **Secure Authentication:** JWT stored in an HTTP-only cookie, verified on protected routes.
+* **Distributed Rate Limiting:** Custom Redis-based middleware (`INCR` + `EXPIRE`) limits link creation to 10/minute per IP.
+* **Dockerized Local Dev:** Spin up the API and Redis together via Docker Compose — Postgres is Neon (managed), not containerized.
+
+---
+
+## 📸 Screenshots
+
+| Home | Shortening | Analytics 
+|---|---|---|
+| ![Home](./client\public\homeSS.png) |![Shorten](./client\public\shortenSS.png) | ![Analytics](./client\public\analyticsSS.png) |
+
+---
+
+## Architecture & Technology Stack
 
 LinkTP is structured as a decoupled monorepo containing a frontend client tier and a backend API server tier.
 
@@ -30,16 +45,33 @@ graph TD
     Client[React Client SPA] -->|HTTP / Cookies| Server[Express API Server]
     Server -->|Direct Reads / Writes| Postgres[(PostgreSQL DB via Prisma)]
     Server -->|Read-through Cache & Rate Limiting| Redis[(Redis Caching Database)]
-    Server -.->|Async Queue Flush| Postgres
+    Server -.->|Async Batch Flush| Postgres
 ```
 
 ### Stack Components
 
-*   **Frontend:** React (Vite) Single Page Application, Axios for asynchronous API communication, React Router v6.
-*   **Backend:** Node.js, Express, JavaScript ES Modules, Zod schema validation middleware.
-*   **Persistent Storage:** PostgreSQL database, managed seamlessly with Prisma ORM.
-*   **Caching & Tracking:** Redis container servicing rate limiting, redirection caches, and active click logs.
-*   **Container Infrastructure:** Docker Compose, Alpine Linux base virtual containers.
+* **Frontend:** React (Vite) SPA, Axios, React Router v6.
+* **Backend:** Node.js, Express, JavaScript ES Modules, Zod schema validation middleware.
+* **Persistent Storage:** PostgreSQL (Neon), managed via Prisma ORM.
+* **Caching & Tracking:** Redis for redirecting cache, rate limiting and pending-click buffer.
+* **Infra:** Docker Compose (API + Redis, local dev only), Render (API), Vercel (client) · Upstash (Redis, prod).
+
+---
+
+## API Endpoints
+
+### Authentication (`/auth/*`)
+* `POST /auth/register` — Create a new account.
+* `POST /auth/login` — Log in, receive an HTTP-only session cookie.
+* `POST /auth/logout` — Clear the session cookie.
+* `GET /auth/me` — Return the active user's profile.
+
+### Shortener & Redirect (`/*`)
+* `POST /shorten` — Shorten a URL. Supports custom aliases and expiration.
+* `GET /urls` — List all URLs owned by the authenticated user.
+* `GET /urls/:id/stats` — Get traffic stats for a specific short link.
+* `DELETE /urls/:id` — Delete a short link and evict its cache entry.
+* `GET /:code` — Redirect to the target URL (cache-aside lookup).
 
 ---
 
@@ -57,110 +89,57 @@ graph TD
 ├── server/                 # Express backend application
 │   ├── prisma/             # Schema definitions and database migrations
 │   ├── src/
-│   │   ├── controllers/    # Route controllers (URL shortened/redirection/auth logic)
+│   │   ├── controllers/    # Route controllers (URL shorten/redirect/auth logic)
 │   │   ├── middleware/     # Rate limiter, validation, auth verification
 │   │   └── routes/         # Express endpoint definitions
 │   ├── Dockerfile
 │   └── package.json
 │
-└── docker-compose.yml      # Docker container management orchestration
+└── docker-compose.yml      # API + Redis on Local Dev
 ```
 
 ---
 
-## 🚀 Getting Started
-
-Follow these steps to run the application in your local environment.
+## Getting Started
 
 ### Prerequisites
 
-Make sure you have the following installed on your machine:
-*   [Node.js](https://nodejs.org/) (Version >= 20.x recommended)
-*   [Docker & Docker Compose](https://www.docker.com/products/docker-desktop/)
-*   A running PostgreSQL database instance (if installing manually)
-*   A running Redis server instance (if installing manually)
+* [Node.js](https://nodejs.org/) (>= 20.x)
+* [Docker & Docker Compose](https://www.docker.com/products/docker-desktop/) (optional, for containerized dev)
+* A PostgreSQL connection string (this project uses [Neon](https://neon.tech/))
+* A Redis instance (local via Docker, or [Upstash](https://upstash.com/) for production)
 
-### 🐋 Option 1: Development Environment via Docker
+### 🐋 Option 1: Docker (API + Redis)
 
-The simplest way to run LinkTP is via Docker Compose, which automatically provisions the server and the Redis caching server.
-
-1.  **Configure environment variables:** Create a `.env` file inside the `server/` directory:
+1. **Configure environment variables** — create `server/.env`:
     ```env
     PORT=5000
-    DATABASE_URL="postgresql://username:password@host:port/database"
+    DATABASE_URL="postgresql://user:password@host/db?sslmode=require"
+    REDIS_URL="redis://redis:6379"
     JWT_SECRET="create-a-random-secure-phrase"
     ```
-2.  **Spin up the containers:** Run the following command in the project root:
+2. **Start the containers:**
     ```bash
-    docker-compose up --build
+    docker compose up --build
     ```
-3.  **Client setup:** Launch your frontend client locally:
+3. **Start the client:**
     ```bash
     cd client
     npm install
     npm run dev
     ```
 
-### 🛠️ Option 2: Manual Local Setup
+### Option 2: Manual Local Setup
 
-If you prefer to run services natively on your host machine:
-
-#### 1. Database Migrations
-Go to the server directory, install dependencies, and run Prisma migrations to build schema structures in your PostgreSQL database:
 ```bash
 cd server
 npm install
-
-# Run database schema migration
-npx prisma db push
+npx prisma migrate dev   # applies schema migrations
+npm run dev               # http://localhost:5000
 ```
 
-#### 2. Start the Backend Server
-Start the development server with Hot Module Reloading:
-```bash
-npm run dev
-```
-The server will bind to `http://localhost:5000`.
-
-#### 3. Start the Frontend Client
-Open a new terminal window at the project root, navigate to `client`, set up packages, and start the Vite dev server:
 ```bash
 cd client
 npm install
-npm run dev
+npm run dev               # http://localhost:5173
 ```
-The client will bind to `http://localhost:5173`.
-
----
-
-## 🔌 API Endpoints Summary
-
-### Authentication Routes (`/auth/*`)
-*   `POST /auth/register` — Create a new developer account.
-*   `POST /auth/login` — Log in and receive a secure HTTP-Only cookie.
-*   `POST /auth/logout` — Clear session cookies.
-*   `GET /auth/me` — Check the active profile details.
-
-### Shortener & Redirect Routes (`/*`)
-*   `POST /shorten` — Shorten a long URL. Supports custom aliases and expiration parameters.
-*   `GET /urls` — List all URLs owned by the authenticated user.
-*   `GET /urls/:id/stats` — Get traffic breakdowns for a specific shortened link.
-*   `DELETE /urls/:id` — Delete a route code and purge its cache.
-*   `GET /:code` — Redirect standard visitors to the target website.
-
----
-
-## 🤝 Contributing
-
-Contributions make the open-source community an amazing place to learn and build.
-
-1.  Review our development guidelines.
-2.  Fork this repository.
-3.  Create a descriptive branch (`git checkout -b feature/awesome-feature`).
-4.  Commit your modifications properly.
-5.  Push files to your branch (`git push origin feature/awesome-feature`).
-6.  Open a Pull Request describing your context changes.
-
-## 📄 License
-
-This repository is distributed under the MIT License. Reference the [LICENSE](LICENSE) file for terms and limitations.
