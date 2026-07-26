@@ -37,7 +37,7 @@ export default function Home() {
     };
 
     const handleCopy = (shortCode, index, isSession = false) => {
-        const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+        const API_BASE_URL = (import.meta.env.VITE_API_URL || "http://localhost:5000").replace(/\/+$/, "");
         const shortUrl = `${API_BASE_URL}/${shortCode}`;
         navigator.clipboard.writeText(shortUrl);
         
@@ -65,7 +65,7 @@ export default function Home() {
                     LinkTP URL Shortener
                 </h1>
                 <p style={{ color: "var(--text-secondary)", fontSize: "1.1rem", maxWidth: "600px", margin: "0 auto" }}>
-                    Create clean, memorable links instantly. Secure, fast redirection with real-time tracking analytics.
+                    Your links, shortened in milliseconds. Every click, tracked in real time."
                 </p>
             </header>
 
@@ -89,7 +89,7 @@ export default function Home() {
                 ) : (
                     <div className="links-grid">
                         {displayedLinks.map((link, idx) => {
-                            const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+                            const API_BASE_URL = (import.meta.env.VITE_API_URL || "http://localhost:5000").replace(/\/+$/, "");
                             const shortUrl = `${API_BASE_URL}/${link.shortCode}`;
                             const isCopied = copiedIndex === `${user ? "db" : "session"}-${idx}`;
 

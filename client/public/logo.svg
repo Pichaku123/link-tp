@@ -1,0 +1,43 @@
+<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="linkGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#6366F1"/>
+      <stop offset="100%" stop-color="#22D3EE"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Back chain link (top-left, open/broken) -->
+  <path d="M 65 55
+           A 28 28 0 0 1 105 55
+           L 95 65
+           A 14 14 0 0 0 75 65
+           Z"
+        fill="none"
+        stroke="url(#linkGradient)"
+        stroke-width="14"
+        stroke-linecap="round"
+        transform="rotate(-45 85 85)"
+        opacity="0.4"/>
+
+  <!-- Front chain link (bottom-right) -->
+  <rect x="60" y="95" width="70" height="42" rx="21"
+        fill="none"
+        stroke="url(#linkGradient)"
+        stroke-width="14"
+        transform="rotate(-45 95 116)"/>
+
+  <!-- Front chain link (top-left) -->
+  <rect x="68" y="60" width="70" height="42" rx="21"
+        fill="none"
+        stroke="url(#linkGradient)"
+        stroke-width="14"
+        transform="rotate(-45 103 81)"/>
+
+  <!-- Arrow breaking through, indicating redirect -->
+  <path d="M 118 62 L 150 30 M 150 30 L 150 50 M 150 30 L 130 30"
+        fill="none"
+        stroke="#0F172A"
+        stroke-width="9"
+        stroke-linecap="round"
+        stroke-linejoin="round"/>
+</svg>

@@ -17,7 +17,7 @@ export default function Navbar() {
     return (
         <nav className="navbar">
             <Link to="/" className="navbar-brand">
-                <img src="/vite.svg" alt="Vite Logo" className="navbar-logo" />
+                <img src="/logo.svg" alt="Vite Logo" className="navbar-logo" />
                 <span>Link-TP</span>
             </Link>
 
