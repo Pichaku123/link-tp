@@ -32,7 +32,7 @@ LinkTP is a feature-rich, high-performance, full-stack URL shortener and real-ti
 
 | Home | Shortening | Analytics 
 |---|---|---|
-| ![Home](./client\public\homeSS.png) |![Shorten](./client\public\shortenSS.png) | ![Analytics](./client\public\analyticsSS.png) |
+| ![Home](./client/public/homeSS.png) |![Shorten](./client/public/shortenSS.png) | ![Analytics](./client/public/analyticsSS.png) |
 
 ---
 
