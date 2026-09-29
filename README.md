@@ -11,8 +11,8 @@
 
 LinkTP is a feature-rich, high-performance, full-stack URL shortener and real-time analytics platform. Modern web architectures demand low latency for link redirects and high throughput for analytics payload collection. LinkTP solves this by introducing a Redis caching layer for instant redirection and an asynchronous flushing queue to persist URL click metrics to PostgreSQL without blocking user traffic.
 
-**Live Demo:** [https://link-tp.vercel.app/](#)  
-**API:** [https://link-tp.onrender.com/](#)
+**Live Demo:** [https://link-tp.vercel.app/](https://link-tp.vercel.app/)  
+**API:** [https://link-tp.onrender.com/](https://link-tp.onrender.com/)
 
 ---
 
