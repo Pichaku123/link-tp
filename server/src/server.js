@@ -18,8 +18,17 @@ app.use(cors({
 app.use(express.json());
 app.use(cookieParser());
 
+app.get('/health', (req, res) => {
+  res.status(200).json({
+    status: 'UP',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime() // returns uptime in seconds
+  });
+});
+
 app.use("/auth", authRoutes);
 app.use("/", urlRoutes);
+
 
 app.use(errorHandler);
 
